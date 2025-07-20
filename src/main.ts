@@ -34,7 +34,6 @@ function initGame() {
 
   const startBtn = document.getElementById('start-game')!;
   const resumeBtn = document.getElementById('resume-game')!;
-  const gameContainer = document.getElementById('game-container')!;
 
   startBtn.addEventListener('click', () => {
     const gameStore = useGameStore.getState();

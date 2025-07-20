@@ -6,8 +6,10 @@ export interface GameState {
   currentRound: number;
   playerBudgets: BudgetItem[];
   opponentBudgets: BudgetItem[];
-  availableChoices: BudgetItem[];
+  availableChoices: Record<BudgetCategory, BudgetItem[]>;
   gamePhase: GamePhase;
+  currentDraftCategory: BudgetCategory | null;
+  selectedItemsThisRound: BudgetItem[];
 }
 
 export interface BudgetItem {
@@ -29,33 +31,36 @@ export interface PlayerStats {
   budgetBalance: number;
 }
 
-export enum LifeStage {
-  Teen = 'teen',
-  College = 'college',
-  YoungAdult = 'young-adult',
-  Career = 'career',
-  Midlife = 'midlife',
-  Retirement = 'retirement'
-}
+export const LifeStage = {
+  Teen: 'teen',
+  College: 'college',
+  YoungAdult: 'young-adult',
+  EarlyCareer: 'early-career',
+  MidCareer: 'mid-career',
+  SeniorCareer: 'senior-career',
+  PreRetirement: 'pre-retirement',
+  Retirement: 'retirement'
+} as const;
 
-export enum BudgetCategory {
-  Housing = 'housing',
-  Food = 'food',
-  Transportation = 'transportation',
-  Entertainment = 'entertainment',
-  Education = 'education',
-  Healthcare = 'healthcare',
-  Savings = 'savings',
-  Investment = 'investment',
-  Debt = 'debt'
-}
+export type LifeStage = typeof LifeStage[keyof typeof LifeStage];
 
-export enum GamePhase {
-  Draft = 'draft',
-  Battle = 'battle',
-  Results = 'results',
-  GameOver = 'game-over'
-}
+export const BudgetCategory = {
+  Job: 'job',
+  Housing: 'housing',
+  Savings: 'savings',
+  Discretionary: 'discretionary'
+} as const;
+
+export type BudgetCategory = typeof BudgetCategory[keyof typeof BudgetCategory];
+
+export const GamePhase = {
+  Draft: 'draft',
+  Battle: 'battle',
+  Results: 'results',
+  GameOver: 'game-over'
+} as const;
+
+export type GamePhase = typeof GamePhase[keyof typeof GamePhase];
 
 export interface BattleResult {
   winner: 'player' | 'opponent';

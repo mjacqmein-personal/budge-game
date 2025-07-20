@@ -1,6 +1,6 @@
 import { Scene } from 'phaser';
 import { useGameStore } from '../store/gameStore';
-import { GamePhase } from '../types/game';
+import { GamePhase, BudgetCategory } from '../types/game';
 
 export class GameBoard extends Scene {
   private gameStore: any;
@@ -27,25 +27,46 @@ export class GameBoard extends Scene {
   }
 
   createUI() {
-    const title = this.add.text(400, 50, 'Budget Pets', {
-      fontSize: '32px',
+    const title = this.add.text(400, 30, 'Budget Pets', {
+      fontSize: '28px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    const stageText = this.add.text(400, 70, `Life Stage: ${this.formatStageName(this.gameStore.currentStage)}`, {
+      fontSize: '18px',
+      color: '#4ade80',
+      fontFamily: 'Arial'
+    }).setOrigin(0.5);
+    
+    const scoreText = this.add.text(400, 100, `Record: ${this.gameStore.wins}W - ${this.gameStore.losses}L | Round: ${this.gameStore.currentRound}`, {
+      fontSize: '14px',
       color: '#ffffff',
       fontFamily: 'Arial'
     }).setOrigin(0.5);
     
-    const stageText = this.add.text(400, 100, `Stage: ${this.gameStore.currentStage}`, {
-      fontSize: '20px',
-      color: '#ffffff',
-      fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    // Show current budget summary
+    const totalIncome = this.gameStore.playerBudgets.reduce((sum: number, item: any) => sum + item.income, 0);
+    const totalExpenses = this.gameStore.playerBudgets.reduce((sum: number, item: any) => sum + item.cost, 0);
+    const netBalance = totalIncome - totalExpenses;
     
-    const scoreText = this.add.text(400, 130, `Wins: ${this.gameStore.wins} | Losses: ${this.gameStore.losses}`, {
-      fontSize: '16px',
-      color: '#ffffff',
-      fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    if (this.gameStore.playerBudgets.length > 0) {
+      const balanceColor = netBalance >= 0 ? '#4ade80' : '#ef4444';
+      const budgetText = this.add.text(400, 125, `Current Budget: $${netBalance.toLocaleString()} (Income: $${totalIncome.toLocaleString()}, Expenses: $${totalExpenses.toLocaleString()})`, {
+        fontSize: '12px',
+        color: balanceColor,
+        fontFamily: 'Arial'
+      }).setOrigin(0.5);
+      
+      this.uiContainer.add(budgetText);
+    }
     
     this.uiContainer.add([title, stageText, scoreText]);
+  }
+
+  formatStageName(stage: string): string {
+    return stage.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
 
   setupGameLoop() {
@@ -69,21 +90,46 @@ export class GameBoard extends Scene {
 
   showDraftPhase() {
     const state = useGameStore.getState();
-    const phaseTitle = this.add.text(400, 180, 'Choose Your Budget Items', {
-      fontSize: '24px',
+    const currentCategory = state.currentDraftCategory;
+    
+    if (!currentCategory) return;
+    
+    const categoryName = this.formatStageName(currentCategory);
+    const selectedCount = state.selectedItemsThisRound.length;
+    
+    const phaseTitle = this.add.text(400, 160, `Draft Phase: Choose ${categoryName}`, {
+      fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Arial'
     }).setOrigin(0.5);
     
-    state.availableChoices.forEach((item, index) => {
-      const cardY = 250 + (index * 100);
-      this.createBudgetCard(item, 150, cardY, () => {
+    const progressText = this.add.text(400, 185, `Category ${selectedCount + 1} of 4`, {
+      fontSize: '14px',
+      color: '#94a3b8',
+      fontFamily: 'Arial'
+    }).setOrigin(0.5);
+    
+    // Show previously selected items this round
+    if (selectedCount > 0) {
+      const selectedText = this.add.text(400, 205, `Selected: ${state.selectedItemsThisRound.map((item: any) => item.name).join(', ')}`, {
+        fontSize: '12px',
+        color: '#4ade80',
+        fontFamily: 'Arial'
+      }).setOrigin(0.5);
+      this.uiContainer.add(selectedText);
+    }
+    
+    const choices = state.availableChoices[currentCategory];
+    choices.forEach((item, index) => {
+      const cardX = 100 + (index * 150);
+      const cardY = 280;
+      this.createBudgetCard(item, cardX, cardY, () => {
         state.selectBudgetItem(item);
         this.scene.restart();
       });
     });
     
-    this.uiContainer.add(phaseTitle);
+    this.uiContainer.add([phaseTitle, progressText]);
   }
 
   showBattlePhase() {
@@ -166,30 +212,56 @@ export class GameBoard extends Scene {
   }
 
   createBudgetCard(item: any, x: number, y: number, onClick: () => void) {
-    const card = this.add.rectangle(x, y, 280, 80, 0x1f2937)
-      .setStrokeStyle(2, 0x374151)
+    // Card background with rarity-based border color
+    const borderColors = {
+      'common': 0x9ca3af,
+      'uncommon': 0x10b981,
+      'rare': 0x3b82f6,
+      'legendary': 0xf59e0b
+    };
+    
+    const card = this.add.rectangle(x, y, 130, 120, 0x1f2937)
+      .setStrokeStyle(2, borderColors[item.rarity as keyof typeof borderColors] || 0x374151)
       .setInteractive()
-      .on('pointerdown', onClick);
+      .on('pointerdown', onClick)
+      .on('pointerover', () => card.setAlpha(0.8))
+      .on('pointerout', () => card.setAlpha(1));
     
-    const name = this.add.text(x - 130, y - 20, item.name, {
-      fontSize: '14px',
+    const name = this.add.text(x, y - 40, item.name, {
+      fontSize: '11px',
       color: '#ffffff',
-      fontFamily: 'Arial'
-    });
+      fontFamily: 'Arial',
+      align: 'center',
+      wordWrap: { width: 120 }
+    }).setOrigin(0.5);
     
-    const cost = this.add.text(x - 130, y, `Cost: $${item.cost}`, {
-      fontSize: '12px',
-      color: '#fbbf24',
+    const cost = this.add.text(x, y - 10, `Cost: $${item.cost.toLocaleString()}`, {
+      fontSize: '10px',
+      color: item.cost > 0 ? '#ef4444' : '#94a3b8',
       fontFamily: 'Arial'
-    });
+    }).setOrigin(0.5);
     
-    const income = this.add.text(x - 130, y + 15, `Income: $${item.income}`, {
-      fontSize: '12px',
-      color: '#4ade80',
+    const income = this.add.text(x, y + 5, `Income: $${item.income.toLocaleString()}`, {
+      fontSize: '10px',
+      color: item.income > 0 ? '#4ade80' : '#94a3b8',
       fontFamily: 'Arial'
-    });
+    }).setOrigin(0.5);
     
-    this.uiContainer.add([card, name, cost, income]);
+    const rarity = this.add.text(x, y + 25, item.rarity.toUpperCase(), {
+      fontSize: '8px',
+      color: '#' + (borderColors[item.rarity as keyof typeof borderColors] || 0x374151).toString(16),
+      fontFamily: 'Arial'
+    }).setOrigin(0.5);
+    
+    const effect = this.add.text(x, y + 40, item.effect, {
+      fontSize: '8px',
+      color: '#94a3b8',
+      fontFamily: 'Arial',
+      align: 'center',
+      wordWrap: { width: 115 }
+    }).setOrigin(0.5);
+    
+    this.uiContainer.add([card, name, cost, income, rarity, effect]);
   }
 
   startBattle() {
@@ -208,24 +280,40 @@ export class GameBoard extends Scene {
   }
 
   createDefaultGhost() {
+    const currentStage = useGameStore.getState().currentStage;
+    const generateDefaultBudget = (category: any, stage: string) => ({
+      id: `ghost-${category}-${stage}`,
+      name: `Ghost ${category}`,
+      category: category,
+      cost: Math.floor(Math.random() * 1000) + 100,
+      income: Math.floor(Math.random() * 1500) + 200,
+      effect: `AI-generated ${category} choice`,
+      tier: 1,
+      rarity: 'common' as const,
+      synergies: ['ai-generated']
+    });
+
+    const ghostBudgets = [
+      generateDefaultBudget(BudgetCategory.Job, currentStage),
+      generateDefaultBudget(BudgetCategory.Housing, currentStage),
+      generateDefaultBudget(BudgetCategory.Savings, currentStage),
+      generateDefaultBudget(BudgetCategory.Discretionary, currentStage)
+    ];
+
+    const totalIncome = ghostBudgets.reduce((sum, item) => sum + item.income, 0);
+    const totalExpenses = ghostBudgets.reduce((sum, item) => sum + item.cost, 0);
+
     return {
-      id: 'default',
-      playerName: 'Ghost Player',
-      stage: useGameStore.getState().currentStage,
-      budgets: [
-        {
-          id: 'ghost1',
-          name: 'Ghost Budget 1',
-          category: 'savings',
-          cost: 100,
-          income: 200,
-          effect: 'Basic ghost budget',
-          tier: 1,
-          rarity: 'common' as const,
-          synergies: []
-        }
-      ],
-      finalStats: { totalIncome: 200, totalExpenses: 100, netWorth: 100, budgetBalance: 100 },
+      id: 'default-ghost',
+      playerName: 'AI Ghost',
+      stage: currentStage,
+      budgets: ghostBudgets,
+      finalStats: { 
+        totalIncome, 
+        totalExpenses, 
+        netWorth: totalIncome - totalExpenses, 
+        budgetBalance: totalIncome - totalExpenses 
+      },
       timestamp: Date.now()
     };
   }

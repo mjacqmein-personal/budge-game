@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { GameState, BudgetItem, LifeStage, GamePhase, BattleResult, GhostReplay } from '../types/game';
-import { generateBudgetChoices } from '../data/budgetItems';
+import type { GameState, BudgetItem, BattleResult, GhostReplay } from '../types/game';
+import { LifeStage, GamePhase, BudgetCategory } from '../types/game';
+import { generateAllCategoryChoices } from '../data/budgetItems';
 import { simulateBattle } from '../game/battleSimulator';
 
 interface GameStore extends GameState {
@@ -22,36 +23,52 @@ const initialState: GameState = {
   currentRound: 1,
   playerBudgets: [],
   opponentBudgets: [],
-  availableChoices: [],
+  availableChoices: {
+    [BudgetCategory.Job]: [],
+    [BudgetCategory.Housing]: [],
+    [BudgetCategory.Savings]: [],
+    [BudgetCategory.Discretionary]: []
+  },
   gamePhase: GamePhase.Draft,
+  currentDraftCategory: null,
+  selectedItemsThisRound: [],
 };
 
 export const useGameStore = create<GameStore>()((set, get) => ({
       ...initialState,
 
       startNewGame: () => {
-        const choices = generateBudgetChoices(LifeStage.Teen, 3);
+        const choices = generateAllCategoryChoices(LifeStage.Teen);
         set({
           ...initialState,
           availableChoices: choices,
           gamePhase: GamePhase.Draft,
+          currentDraftCategory: BudgetCategory.Job,
         });
       },
 
       selectBudgetItem: (item: BudgetItem) => {
         const state = get();
-        const newPlayerBudgets = [...state.playerBudgets, item];
+        const newSelectedItems = [...state.selectedItemsThisRound, item];
         
-        if (newPlayerBudgets.length >= 3) {
+        // Each round, select 1 item from each category (4 total)
+        if (newSelectedItems.length >= 4) {
+          // Round complete, add to player budgets and start battle
           set({
-            playerBudgets: newPlayerBudgets,
+            playerBudgets: [...state.playerBudgets, ...newSelectedItems],
+            selectedItemsThisRound: [],
             gamePhase: GamePhase.Battle,
+            currentDraftCategory: null,
           });
         } else {
-          const newChoices = generateBudgetChoices(state.currentStage, 3);
+          // Move to next category
+          const categories = Object.values(BudgetCategory);
+          const currentIndex = categories.indexOf(state.currentDraftCategory!);
+          const nextCategory = categories[currentIndex + 1];
+          
           set({
-            playerBudgets: newPlayerBudgets,
-            availableChoices: newChoices,
+            selectedItemsThisRound: newSelectedItems,
+            currentDraftCategory: nextCategory,
           });
         }
       },
@@ -86,14 +103,15 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         const currentIndex = stages.indexOf(state.currentStage);
         const nextStage = stages[Math.min(currentIndex + 1, stages.length - 1)];
         
-        const choices = generateBudgetChoices(nextStage, 3);
+        const choices = generateAllCategoryChoices(nextStage);
         
         set({
           currentStage: nextStage,
           currentRound: state.currentRound + 1,
-          playerBudgets: [],
+          selectedItemsThisRound: [],
           availableChoices: choices,
           gamePhase: GamePhase.Draft,
+          currentDraftCategory: BudgetCategory.Job,
         });
       },
 
