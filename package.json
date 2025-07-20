@@ -1,0 +1,23 @@
+{
+  "name": "budget-pets-game",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  },
+  "dependencies": {
+    "@types/node": "^24.0.15",
+    "autoprefixer": "^10.4.21",
+    "phaser": "^3.90.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11",
+    "zustand": "^5.0.6"
+  }
+}
